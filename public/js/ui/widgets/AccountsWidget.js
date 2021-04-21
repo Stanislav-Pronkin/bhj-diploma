@@ -13,8 +13,13 @@ class AccountsWidget {
    * Если переданный элемент не существует,
    * необходимо выкинуть ошибку.
    * */
-  constructor( element ) {
-
+  constructor(element) {
+    if (!element) {
+      throw new Error("Элемент не существует");
+    }
+    this.element = element;
+    this.registerEvents();
+    this.update();
   }
 
   /**
@@ -25,7 +30,14 @@ class AccountsWidget {
    * вызывает AccountsWidget.onSelectAccount()
    * */
   registerEvents() {
-
+    this.element.addEventListener('click', event => {
+      if (event.target.closest('.create-account')) {
+        App.getModal('createAccount').open();
+      }
+      if (event.target.closest('.account')) {
+        this.onSelectAccount(event.target.closest('.account'));
+      }
+    });
   }
 
   /**
@@ -39,7 +51,15 @@ class AccountsWidget {
    * метода renderItem()
    * */
   update() {
-
+    const currentUser = User.current();
+    if (currentUser) {
+      Account.list(currentUser, (err, response) => {
+        if (response.success) {
+          this.clear();
+          this.renderItem(response.data);
+        }
+      });
+    }
   }
 
   /**
@@ -48,7 +68,9 @@ class AccountsWidget {
    * в боковой колонке
    * */
   clear() {
+    const accounts = Array.from(this.element.getElementsByClassName('account'));
 
+    accounts.forEach(account => account.remove());
   }
 
   /**
@@ -58,8 +80,19 @@ class AccountsWidget {
    * счёта класс .active.
    * Вызывает App.showPage( 'transactions', { account_id: id_счёта });
    * */
-  onSelectAccount( element ) {
+  onSelectAccount(element) {
+    const accounts = Array.from(this.element.getElementsByClassName('account'));
 
+    accounts.forEach(account => {
+      if (account.classList.contains('active')) {
+        account.classList.remove('active');
+      }
+    });
+    element.classList.add('active');
+
+    const account_id = element.dataset.id;
+
+    App.showPage('transactions', { account_id });
   }
 
   /**
@@ -67,8 +100,19 @@ class AccountsWidget {
    * отображения в боковой колонке.
    * item - объект с данными о счёте
    * */
-  getAccountHTML(item){
+  getAccountHTML(item) {
+    let accounts = '';
 
+    item.forEach(unit => {
+      accounts += `<li class="active account" data-id=${unit.id}>
+        <a href="#">
+            <span>${unit.name}</span> /
+            <span>${unit.sum}</span>
+        </a>
+      </li>`;
+    });
+
+    return accounts;
   }
 
   /**
@@ -77,7 +121,8 @@ class AccountsWidget {
    * AccountsWidget.getAccountHTML HTML-код элемента
    * и добавляет его внутрь элемента виджета
    * */
-  renderItem(data){
-
+  renderItem(data) {
+    const accountTemp = this.getAccountHTML(data);
+    this.element.insertAdjacentHTML('beforeend', accountTemp);
   }
 }
